@@ -41,8 +41,12 @@ ${ctx}`;
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
   if (ALLOWED.includes(origin)) res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Max-Age", "86400");
   if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method === "GET") return res.status(200).json({ ok: true, msg: "Kia backend is live. Use POST." });
   if (req.method !== "POST") return res.status(405).end();
 
   const ip = req.headers["x-forwarded-for"] || "x";
@@ -64,12 +68,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM(await liveContext()) }] },
         contents,
-        generationConfig: { maxOutputTokens: 1500, temperature: 0.8 }, // headroom: some Gemini models "think" before replying
+        generationConfig: { maxOutputTokens: 1500, temperature: 0.8 },
       }),
     });
     const data = await r.json();
-    if (!r.ok) console.error("Gemini error:", JSON.stringify(data)); // visible in Vercel logs
-    const reply = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ;
+    if (!r.ok) console.error("Gemini error:", JSON.stringify(data));
+    const reply = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("");
     res.json({ reply: reply || "Hmm, my brain glitched. Try again?" });
   } catch (e) {
     console.error(e);
